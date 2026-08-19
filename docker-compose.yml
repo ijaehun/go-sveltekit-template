@@ -1,0 +1,74 @@
+# docker-compose.yml — 프로덕션
+# 컨테이너 3개: backend(Go) + frontend(SvelteKit/node) + caddy(리버스 프록시)
+# 개발은: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  # Go 백엔드 (정적 바이너리, ~15MB 이미지)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: go-svelte-backend
+    environment:
+      - PORT=8080
+      - ENVIRONMENT=production
+      # 프로덕션은 Caddy 뒤 same-origin(/api) 호출이라 CORS가 필요 없음 → 비워둠
+      - ALLOWED_ORIGINS=
+    # NOTE: 프로덕션에서는 소스 bind-mount 하지 않음 (이미지에 빌드된 바이너리 사용).
+    #       핫리로드는 docker-compose.dev.yml 에만.
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # SvelteKit 프론트엔드 (adapter-node 빌드 → node build 로 실행)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: go-svelte-frontend
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # SvelteKit form actions의 CSRF 검사용 공개 origin. 도메인 쓰면 https://example.com 로.
+      - ORIGIN=${PUBLIC_ORIGIN:-http://localhost}
+    networks:
+      - app-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Caddy 리버스 프록시 (자동 HTTPS)
+  caddy:
+    image: caddy:2-alpine
+    container_name: go-svelte-caddy
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    environment:
+      # .env에서 SITE_ADDRESS=example.com 주면 자동 HTTPS. 없으면 :80
+      - SITE_ADDRESS=${SITE_ADDRESS:-:80}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data        # 인증서 저장 (지우면 재발급 → rate limit 주의)
+      - caddy_config:/config
+    networks:
+      - app-network
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  app-network:
+    driver: bridge

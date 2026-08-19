@@ -1,0 +1,38 @@
+# Development override.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# 프로덕션과의 차이:
+#   - 소스 bind-mount + 핫리로드 (Go: air, Svelte: vite)
+#   - 포트 직접 노출 (frontend 5173 / backend 8080), caddy 미기동
+#   - 접속: http://localhost:5173 (API는 vite proxy가 backend로 전달)
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev   # air 핫리로드
+    volumes:
+      - ./backend:/app
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    environment:
+      - ENVIRONMENT=development
+      - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+
+  frontend:
+    build:
+      context: ./frontend
+      target: base                 # 의존성만 설치된 스테이지 (빌드 생략)
+    command: npm run dev -- --host 0.0.0.0 --port 5173
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules          # 호스트 node_modules로 덮이지 않게
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    environment:
+      - BACKEND_ORIGIN=http://backend:8080   # vite proxy 대상 (컨테이너 간 통신)
+    depends_on: []
+
+  # dev에서는 caddy 불필요 (vite dev server가 직접 서빙 + proxy)
+  caddy:
+    profiles: ["prod-only"]

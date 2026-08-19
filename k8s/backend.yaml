@@ -1,0 +1,59 @@
+# Go 백엔드: Deployment(파드 관리) + Service(내부 네트워크 주소)
+# 학습용 — 로컬(Docker Desktop) 클러스터 전제. 사용법은 K8S.md 참고.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    app: backend
+spec:
+  replicas: 1          # 실험: 3으로 바꾸고 kubectl apply → 스케일링
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          # 로컬에서 빌드한 이미지 사용: docker build -t go-svelte-backend:v1 ./backend
+          image: go-svelte-backend:v1
+          imagePullPolicy: IfNotPresent   # 레지스트리 안 가고 로컬 이미지 사용
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ENVIRONMENT
+              value: production
+          # 준비 확인: 이게 통과해야 Service가 트래픽을 보낸다
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          # 생존 확인: 실패하면 k8s가 컨테이너를 재시작한다
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  selector:
+    app: backend       # 이 라벨을 가진 파드들에게 트래픽 분배 (replicas 늘리면 자동 로드밸런싱)
+  ports:
+    - port: 8080
+      targetPort: 8080

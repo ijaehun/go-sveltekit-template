@@ -1,0 +1,53 @@
+# =============== 환경 변수 ===============
+.env
+.env.local
+.env.production
+.env.development
+*.env
+!.env.example
+
+# =============== Go (Backend) ===============
+backend/tmp/          # air 핫리로드 빌드 산출물
+*.exe
+*.test
+*.out
+/server
+
+# =============== Node / SvelteKit (Frontend) ===============
+node_modules/
+frontend/build/
+frontend/.svelte-kit/
+npm-debug.log*
+vite.config.ts.timestamp-*
+
+# =============== 데이터베이스 ===============
+*.db
+*.sqlite
+*.sqlite3
+data/
+postgres_data/
+
+# =============== 로그 및 임시 파일 ===============
+*.log
+logs/
+tmp/
+temp/
+uploads/
+cache/
+
+# =============== IDE 및 에디터 ===============
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =============== OS ===============
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# =============== 기타 ===============
+*.bak
+*.backup
+*.tar.gz

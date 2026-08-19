@@ -1,0 +1,6 @@
+# Dev image: air로 핫리로드 (소스는 docker-compose.dev.yml에서 bind-mount)
+FROM golang:1.24-alpine
+RUN go install github.com/air-verse/air@latest
+WORKDIR /app
+EXPOSE 8080
+CMD ["air", "-c", ".air.toml"]

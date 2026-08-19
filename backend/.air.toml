@@ -1,0 +1,13 @@
+# air 핫리로드 설정 (dev 전용). .go 파일 변경 시 자동 재빌드/재시작.
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./tmp/server ./cmd/server"
+bin = "./tmp/server"
+include_ext = ["go"]
+exclude_dir = ["tmp"]
+delay = 500
+
+[log]
+time = false

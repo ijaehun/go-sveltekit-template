@@ -1,0 +1,24 @@
+# Caddy 리버스 프록시 (프로덕션).
+#
+# SITE_ADDRESS 환경변수(.env)로 주소를 정한다:
+#   - 도메인 있음: SITE_ADDRESS=example.com  → HTTPS 인증서 자동 발급/갱신 (Let's Encrypt)
+#   - 도메인 없음(IP만): 기본값 :80 으로 HTTP 서빙
+#
+# nginx 대비: certbot 설치/갱신 크론 불필요. 이 파일이 설정의 전부.
+
+{$SITE_ADDRESS::80} {
+	encode gzip
+
+	# API → Go 백엔드
+	handle /api/* {
+		reverse_proxy backend:8080 {
+			# SSE(text/event-stream) 즉시 전달을 위해 버퍼링 비활성화
+			flush_interval -1
+		}
+	}
+
+	# 나머지 → SvelteKit (node 서버)
+	handle {
+		reverse_proxy frontend:3000
+	}
+}
